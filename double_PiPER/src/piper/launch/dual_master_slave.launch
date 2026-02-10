@@ -1,0 +1,68 @@
+<launch>
+  <arg name="can_slave_R_port" default="can0" />
+  <arg name="can_master_R_port" default="can1" />
+  <arg name="can_slave_L_port" default="can2" />
+  <arg name="can_master_L_port" default="can3" />
+  <arg name="auto_enable" default="true" />
+  <arg name="gripper_val_mutiple" default="1" />
+
+  <!-- ================= Master_Right ================= -->
+  <group ns="masterR">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_master_node.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_master_R_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="joint_grip_pose" />
+    </node>
+  </group>
+
+
+  <!-- ================= Slave_Right ================= -->
+  <group ns="slaveR">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_slave_node.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_slave_R_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="/masterR/joint_grip_pose" />
+    </node>
+  </group>
+
+  <!-- ================= Master_Left ================= -->
+  <group ns="masterL">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_master_node.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_master_L_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="joint_grip_pose" />
+    </node>
+  </group>
+
+
+  <!-- ================= Slave_Left ================= -->
+  <group ns="slaveL">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_slave_node.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_slave_L_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="/masterL/joint_grip_pose" />
+    </node>
+  </group>
+
+</launch>
+
