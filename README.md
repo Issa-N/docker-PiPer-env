@@ -170,3 +170,13 @@ roslaunch piper dual_master_slave.launch can_slave_R_port:=can0 can_master_R_por
 `can_master_L_port`は、PiPER(左手のreader側)のCAN番号を変更するオプション(デフォルトは"can3")
 `auto_enable`は、プログラムでPiPERを動かすために、PiPERのモードをチェンジするオプション
 
+### トラブルシューティング
+ROSでcatkin_makeが実行できない場合は、以下のコマンドでlogを削除
+```
+rm -rf build/ devel/ log/
+```
+
+ROSのラウンチやトピックがうまく表示されないときは、rosのsetup.bashを再読込
+```
+sorc_devel
+```
