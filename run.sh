@@ -14,8 +14,8 @@ docker run --rm -it \
 	-e DOCKER_USER_ID=$(id -u) \
 	-e DOCKER_USER_GROUP_NAME=$(id -gn) \
 	-e DOCKER_USER_GROUP_ID=$(id -g) \
-	-v /home/${USR_NAME}/docker-PiPer-env//double_PiPER:/home/${USR_NAME}/docker-PiPER/double_PiPER \
-	docker-piper-env bash
+	-v /home/${USR_NAME}/docker-PiPer-env/double_PiPER:/home/${USR_NAME}/docker-PiPER-env/double_PiPER \
+	docker-piper-env-template bash
 	# --gpus all \
 	# --device /dev/input/js1:/dev/input/js1 \
 	# --device /dev/input/js2:/dev/input/js2 \

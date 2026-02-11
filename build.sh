@@ -1,1 +1,1 @@
-docker build . -t docker-piper-env
+docker build . -t docker-piper-env-template

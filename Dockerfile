@@ -266,12 +266,13 @@ RUN echo "alias set_sdk='cd ~ && \
                             git clone -b 1_0_0_beta https://github.com/agilexrobotics/piper_sdk.git && \
                             cd ~/piper_sdk && \
                             pip3 install . && \
-                            cd ~/docker-PiPer-env/double_PiPER && \
+                            cd ~/docker-PiPER-env/double_PiPER && \
                             catkin_make && \
                             source devel/setup.bash'" >> /root/.bashrc
 
-RUN echo "alias sorc_devel='cd ~/docker-PiPer-env/double_PiPER && \
+RUN echo "alias sorc_devel='cd ~/docker-PiPER-env/double_PiPER && \
                           source devel/setup.bash'" >> /root/.bashrc
+
 
 # RUN echo "alias init_ethernet='sudo ethtool -i can0 | grep bus && \
 #                                 sudo ethtool -i can1 | grep bus && \
