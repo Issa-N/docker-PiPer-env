@@ -32,6 +32,8 @@
       <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
       <param name="gripper_exist" value="true" />
       <remap from="joint_ctrl_single" to="/master/joint_grip_pose" />
+      <!-- leader pose topic -->
+      <remap from="/end_pose_euler" to="/master/end_pose_euler" />
     </node>
   </group>
 

@@ -69,7 +69,7 @@ class PiperSlaveNode:
 
         self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
 
-        rospy.loginfo("Right Slave ready.")
+        rospy.loginfo("Left Slave ready.")
 
         # =========================
         # Subscribers
@@ -157,7 +157,8 @@ class PiperSlaveNode:
         x = pose.x
         y = pose.y
         z = pose.z
-        rz_rad = math.pi-abs(pose.yaw)
+        rz_rad = abs(abs(pose.yaw)-0.663)
+        # print("yow:", abs(abs(pose.yaw)-0.663))
         # print("marg:",1/math.cos(rz_rad))#, math.cos(rz))
         # print("rx:", pose.roll)
         # print("ry:", pose.pitch)
@@ -167,12 +168,12 @@ class PiperSlaveNode:
 
         # if not (self.workspace["x_min"]/math.cos(rz_rad) <= x <= self.workspace["x_max"]/math.cos(rz_rad)):
         #     return False
-        # if not (self.workspace["y_min"]/math.cos(rz_rad) <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-        #     return False
+        if not (self.workspace["y_min"]/math.cos(rz_rad) <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
+            return False
         # if not (self.workspace["x_min"] <= x <= self.workspace["x_max"]):
         #         return False
-        if not (self.workspace["y_min"] <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-            return False
+        # if not (self.workspace["y_min"] <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
+        #     return False
         # if not (self.workspace["z_min"] <= z <= self.workspace["z_max"]):
         #     return False
 
@@ -189,7 +190,7 @@ class PiperSlaveNode:
 
         # workspace外なら動かない
         if not self.is_inside_workspace(self.latest_pose):
-            rospy.logwarn_throttle(1.0, "Right Arm: Outside workspace. Motion blocked.")
+            rospy.logwarn_throttle(1.0, "Left Arm: Outside workspace. Motion blocked.")
             return
 
         if len(msg.position) < 7:

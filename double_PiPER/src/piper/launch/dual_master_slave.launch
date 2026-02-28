@@ -32,6 +32,8 @@
       <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
       <param name="gripper_exist" value="true" />
       <remap from="joint_ctrl_single" to="/masterR/joint_grip_pose" />
+      <!-- leader pose topic -->
+      <remap from="/end_pose_euler" to="/masterR/end_pose_euler" />
     </node>
   </group>
 
@@ -54,13 +56,15 @@
   <group ns="slaveL">
     <node name="ctrl"
           pkg="piper"
-          type="piper_ctrl_slave_node.py"
+          type="piper_ctrl_slave_node_L.py"
           output="screen">
       <param name="can_port" value="$(arg can_slave_L_port)" />
       <param name="auto_enable" value="$(arg auto_enable)" />
       <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
       <param name="gripper_exist" value="true" />
       <remap from="joint_ctrl_single" to="/masterL/joint_grip_pose" />
+      <!-- leader pose topic -->
+      <remap from="/end_pose_euler" to="/masterL/end_pose_euler" />
     </node>
   </group>
 

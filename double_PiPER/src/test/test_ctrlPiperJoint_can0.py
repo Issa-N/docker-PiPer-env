@@ -56,6 +56,7 @@ if __name__ == "__main__":
         # joints[4] = base[4] + radius * math.cos(omega * t)
         # joints[5] = base[5] + radius * math.sin(omega * t)
 
+
         piper.move_j(joints, move_spd_rate_ctrl)
 
         # ===== グリッパー開閉（sin波）=====
@@ -65,8 +66,15 @@ if __name__ == "__main__":
         piper.move_gripper(grip_pos, 1)
 
         print("===================")
-        print("Joint: ", joints)
-        print("Gripper: ", grip_pos)
+        # print("Joint: ", joints)
+        # print("Gripper: ", grip_pos)
+        print("End_Pos_Eular;",piper.get_end_pose_euler()[0])
+        # print("x;",piper.get_end_pose_euler()[0][0])
+        # print("y;",piper.get_end_pose_euler()[0][1])
+        # print("z;",piper.get_end_pose_euler()[0][2])
+        # print("rx;",piper.get_end_pose_euler()[0][3])
+        # print("ry;",piper.get_end_pose_euler()[0][4])
+        # print("rz;",piper.get_end_pose_euler()[0][5])
         print("===================\n\n")
         
         time.sleep(dt)
