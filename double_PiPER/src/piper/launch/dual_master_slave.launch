@@ -10,7 +10,7 @@
   <group ns="masterR">
     <node name="ctrl"
           pkg="piper"
-          type="piper_ctrl_master_node.py"
+          type="piper_ctrl_master_node_new.py"
           output="screen">
       <param name="can_port" value="$(arg can_master_R_port)" />
       <param name="auto_enable" value="$(arg auto_enable)" />
@@ -41,7 +41,7 @@
   <group ns="masterL">
     <node name="ctrl"
           pkg="piper"
-          type="piper_ctrl_master_node.py"
+          type="piper_ctrl_master_node_new.py"
           output="screen">
       <param name="can_port" value="$(arg can_master_L_port)" />
       <param name="auto_enable" value="$(arg auto_enable)" />

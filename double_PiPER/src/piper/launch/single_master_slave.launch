@@ -6,11 +6,18 @@
   <arg name="auto_enable" default="true" />
   <arg name="gripper_val_mutiple" default="1" />
 
+  <!-- type="piper_ctrl_master_node.py" -->
   <!-- ================= Master ================= -->
   <group ns="master">
+    <!-- Old version -->
+    <!-- <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_master_node_new.py"
+          output="screen"> -->
+    <!-- New version -->
     <node name="ctrl"
           pkg="piper"
-          type="piper_ctrl_master_node.py"
+          type="piper_ctrl_master_node_new.py"
           output="screen">
       <param name="can_port" value="$(arg can_master_port)" />
       <param name="auto_enable" value="$(arg auto_enable)" />

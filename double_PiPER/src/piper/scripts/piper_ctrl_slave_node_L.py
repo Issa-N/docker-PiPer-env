@@ -60,6 +60,32 @@ class PiperSlaveNode:
         self.piper.connect()
         time.sleep(0.2)
 
+        # =========================
+        # 自動モードに切り替えるための初期化プロセス
+        # =========================
+        while not self.piper.enable_arm():
+            time.sleep(0.01)
+
+        self.piper.enable_gripper()
+
+        if self.interface.GetArmStatus().arm_status.ctrl_mode != 1:
+            self.stop()  # This function must be called first when exiting the teaching mode for the first time to switch to CAN mode
+        over_time = time.time() + 10.0
+        while self.interface.GetArmStatus().arm_status.ctrl_mode != 1:
+            if over_time < time.time():
+                print("ERROR: Failed to switch to CAN mode, please check if the teaching mode is exited")
+                exit()
+            self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
+            time.sleep(0.01)
+        self.enable()
+
+        while not self.piper.enable_arm():
+            time.sleep(0.01)
+
+        self.piper.enable_gripper()
+
+        ### -----
+
         if self.auto_enable:
             while not self.piper.enable_arm():
                 time.sleep(0.01)
@@ -212,6 +238,39 @@ class PiperSlaveNode:
         # print("=======================")
         # print(self.piper.get_end_pose_euler()[0])
         # print("=======================")
+    
+    # =========================================================
+    # 起動までTeacherモードを起動した際のサーボモータ初期化の関数たち
+    # =========================================================
+    def get_pos(self):
+        '''Get the current joint radians of the robotic arm and the gripper opening distance'''
+        joint_state = self.piper.get_joint_states()[0]
+        if self.have_gripper:
+            return joint_state + (self.piper.get_gripper_states()[0][0], )
+        return joint_state 
+    
+    def stop(self):
+        '''Stop the robotic arm; this function must be called first when exiting the teaching mode for the first time to control the robotic arm in CAN mode'''
+        self.interface.EmergencyStop(0x01)
+        time.sleep(1.0)
+        limit_angle = [0.1745, 0.7854, 0.2094]  # The robotic arm can be restored only when the radians of joints 2, 3, and 5 are within the limit range to prevent damage caused by falling from a large radian
+        pos = self.get_pos()
+        while not (abs(pos[1]) < limit_angle[0] and abs(pos[2]) < limit_angle[0] and pos[4] < limit_angle[1] and pos[4] > limit_angle[2]):
+            time.sleep(0.01)
+            pos = self.get_pos()
+        # Restore the robotic arm
+        self.piper.disable_arm()
+        time.sleep(1.0)
+    
+    def enable(self):
+        '''Enable the robotic arm and gripper'''
+        while not self.piper.enable_arm():
+            time.sleep(0.01)
+        if self.have_gripper:
+            time.sleep(0.01)
+            self.piper.enable_gripper()
+        self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
+        print("INFO: Enable successful")
 
 
 # =============================================================

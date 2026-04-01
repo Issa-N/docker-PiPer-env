@@ -8,19 +8,20 @@ import numpy as np
 from sensor_msgs.msg import JointState
 from piper_msgs.msg import PiperEulerPose
 from piper_sdk import Piper
+from std_srvs.srv import Trigger, TriggerResponse
 
 
 
-class PiperSlaveNode:
+class PiperMasterNode:
 
     def __init__(self):
 
-        rospy.init_node("piper_ctrl_slave_node")
+        rospy.init_node("piper_ctrl_master_node")
 
         # =========================
         # params
         # =========================
-        self.can_port = rospy.get_param("~can_port", "can0")
+        self.can_port = rospy.get_param("~can_port", "can1")
         self.auto_enable = rospy.get_param("~auto_enable", True)
         self.gripper_exist = rospy.get_param("~gripper_exist", True)
 
@@ -30,16 +31,16 @@ class PiperSlaveNode:
         # =========================
         # Workspace limit (meters)
         # =========================
-        self.workspace = {
-            "x_min":  -0.05,
-            "x_max":   0.05,
-            "y_min":  -0.32,
-            "y_max":   0.32,
-            "z_min":   0.1,
-            "z_max":   0.65,
-            "rz_min": -3.0,
-            "rz_max":  3.0,
-        }
+        # self.workspace = {
+        #     "x_min":  -0.05,
+        #     "x_max":   0.05,
+        #     "y_min":  -0.32,
+        #     "y_max":   0.32,
+        #     "z_min":   0.1,
+        #     "z_max":   0.65,
+        #     "rz_min": -3.0,
+        #     "rz_max":  3.0,
+        # }
         # self.workspace = {
         #     "x_min": -math.inf,
         #     "x_max":  math.inf,
@@ -48,9 +49,6 @@ class PiperSlaveNode:
         #     "z_min": -math.inf,
         #     "z_max":  math.inf,
         # }
-
-        # 最新のleader姿勢保存用
-        self.latest_pose = None
 
         # =========================
         # Piper init
@@ -97,52 +95,48 @@ class PiperSlaveNode:
 
         self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
 
-        rospy.loginfo("Right Slave ready.")
+        rospy.loginfo("Master:" + str(self.can_port) + " ready.")
+
         print("\n===============================")
-        print("Slave Left:"+ str(self.can_port))
+        print("Master Left:"+ str(self.can_port))
         print("===============================")
 
         # =========================
-        # Subscribers
+        # Publisher
         # =========================
-        rospy.Subscriber(
-            "joint_ctrl_single",
+        self.joint_pose_pub = rospy.Publisher(
+            "joint_grip_pose",
             JointState,
-            self.joint_callback,
             queue_size=1
         )
-
-        # rospy.Subscriber(
-        #     "/end_pose_euler",
+        # self.end_pose_pub = rospy.Publisher(
+        #     "end_pose_euler",
         #     PiperEulerPose,
-        #     self.pose_callback,
         #     queue_size=1
         # )
-        rospy.Subscriber(
-            "/end_pose_euler",
+        self.end_pose_pub2 = rospy.Publisher(
+            "end_pose_euler",
             JointState,
-            self.pose_callback,
             queue_size=1
         )
-
-        self.joint_obs_pub = rospy.Publisher(
-            "current_joint_obs",
-            JointState,
-            queue_size=10
-        )
-        self.robot_obs = JointState()
-        self.robot_obs.name = [
-            "joint1","joint2","joint3",
-            "joint4","joint5","joint6",
-            "gripper"
-        ]
         # 定期publish用timer
-        rospy.Timer(rospy.Duration(0.02), self.Publish_JointObs)
+        rospy.Timer(rospy.Duration(0.02), self.Publish_JointPos)
+        # rospy.Timer(rospy.Duration(0.02), self.Publish_EndPos)
+        rospy.Timer(rospy.Duration(0.02), self.Publish_EndPos2)
+
+        # =========================
+        # Service
+        # =========================
+        self.go_home_srv = rospy.Service(
+            "go_home",
+            Trigger,
+            self.Service_Go_Home
+        )
     
     # =========================================================
-    # PiPERの現在のJoint角度＆グリッパー位置を取得
+    # Joint角度＆グリッパー位置を取得＆公開
     # =========================================================
-    def Publish_JointObs(self, event):
+    def Publish_JointPos(self, event):
         joint_pos = self.piper.get_joint_states()[0]
         gripper_pos = self.piper.get_gripper_states()[0][0]
         # end_pos = self.piper.get_end_pose_euler()[0]
@@ -156,137 +150,91 @@ class PiperSlaveNode:
         ]
 
         msg.position = list(joint_pos) + [gripper_pos]
-        self.joint_obs_pub.publish(msg)
-
-        
-
-    # =========================================================
-    # leaderのエンド姿勢を保存
-    # =========================================================
-    def pose_callback(self, msg):
-        self.latest_pose = msg
-        # print("===== Leader End Pose =====")
-        # print("x: {:.3f}  y: {:.3f}  z: {:.3f}".format(msg.x, msg.y, msg.z))
-        # print("roll: {:.3f}  pitch: {:.3f}  yaw: {:.3f}".format(
-        #     msg.roll, msg.pitch, msg.yaw))
-        # print("===========================")
+        self.joint_pose_pub.publish(msg)
     
-    # # =========================================================
-    # # 動作可能領域をロボット基準座標系→World座標系に変換
-    # # =========================================================
-    # def transform_point(p2, rx, ry, rz, t=None, degrees=False):
-    #     """
-    #     p2 : 座標系2での点 [x, y, z]
-    #     rx, ry, rz : roll, pitch, yaw (ZYX順)
-    #     t : 並進ベクトル [tx, ty, tz]
-    #     degrees : 角度がdegreeならTrue
-    #     """
+    # =========================================================
+    # エンドエフェクタ位の位置と角度を取得＆公開
+    # =========================================================
+    # def Publish_EndPos(self, event):
+    #     # joint_pos = self.piper.get_joint_states()[0]
+    #     # gripper_pos = self.piper.get_gripper_states()[0][0]
+    #     end_pos = self.piper.get_end_pose_euler()[0]
 
-    #     if degrees:
-    #         rx = np.deg2rad(rx)
-    #         ry = np.deg2rad(ry)
-    #         rz = np.deg2rad(rz)
+    #     end_pose_euler = PiperEulerPose()
 
-    #     # 回転行列
-    #     Rx = np.array([
-    #         [1, 0, 0],
-    #         [0, np.cos(rx), -np.sin(rx)],
-    #         [0, np.sin(rx),  np.cos(rx)]
-    #     ])
+    #     end_pose_euler.header.stamp = rospy.Time.now()
+    #     end_pose_euler.x = end_pos[0]
+    #     end_pose_euler.y = end_pos[1]
+    #     end_pose_euler.z = end_pos[2]
+    #     end_pose_euler.roll  = end_pos[3]
+    #     end_pose_euler.pitch = end_pos[4]
+    #     end_pose_euler.yaw   = end_pos[5]
+    #     self.end_pose_pub.publish(end_pose_euler)
+    
+    def Publish_EndPos2(self, event):
+        # joint_pos = self.piper.get_joint_states()[0]
+        # gripper_pos = self.piper.get_gripper_states()[0][0]
+        end_pos = self.piper.get_end_pose_euler()[0]
 
-    #     Ry = np.array([
-    #         [ np.cos(ry), 0, np.sin(ry)],
-    #         [0, 1, 0],
-    #         [-np.sin(ry), 0, np.cos(ry)]
-    #     ])
+        end_pose_euler = JointState()
+        end_pose_euler.header.stamp = rospy.Time.now()
+        end_pose_euler.name = [
+            "x","y","z",
+            "roll","pitch","yaw"
+        ]
+        end_pose_euler.position = end_pos
 
-    #     Rz = np.array([
-    #         [np.cos(rz), -np.sin(rz), 0],
-    #         [np.sin(rz),  np.cos(rz), 0],
-    #         [0, 0, 1]
-    #     ])
-
-    #     # ZYX順
-    #     R = Rz @ Ry @ Rx
-
-    #     p2 = np.array(p2)
-
-    #     if t is None:
-    #         t = np.zeros(3)
-    #     else:
-    #         t = np.array(t)
-
-    #     # 座標変換
-    #     pB = R @ p2 + t
-
-    #     return pB
+        self.end_pose_pub2.publish(end_pose_euler)
 
     # =========================================================
-    # workspace内判定
+    # ホームポジションに戻すサービス
     # =========================================================
-    def is_inside_workspace(self, pose):
+    def Service_Go_Home(self, req):
+        rospy.loginfo("Service: Go Home Position!")
 
-        x = pose.position[0]
-        y = pose.position[1]
-        z = pose.position[2]
-        # roll  = pose.position[3]
-        # pitch = pose.position[4]
-        yaw   = pose.position[5]
-        rz_rad = math.pi-abs(yaw)
-        # print("marg:",1/math.cos(rz_rad))#, math.cos(rz))
-        # print("rx:", pose.roll)
-        # print("ry:", pose.pitch)
+        while not self.piper.enable_arm():
+            time.sleep(0.01)
 
-        # transform_point(p2, rx, ry, rz, t=None, degrees=False)
+        self.piper.enable_gripper()
 
+        if self.interface.GetArmStatus().arm_status.ctrl_mode != 1:
+            self.stop()  # This function must be called first when exiting the teaching mode for the first time to switch to CAN mode
+        over_time = time.time() + 10.0
+        while self.interface.GetArmStatus().arm_status.ctrl_mode != 1:
+            if over_time < time.time():
+                print("ERROR: Failed to switch to CAN mode, please check if the teaching mode is exited")
+                exit()
+            self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
+            time.sleep(0.01)
+        self.enable()
 
-        # if not (self.workspace["x_min"]/math.cos(rz_rad) <= x <= self.workspace["x_max"]/math.cos(rz_rad)):
-        #     return False
-        # if not (self.workspace["y_min"]/math.cos(rz_rad) <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-        #     return False
-        # if not (self.workspace["x_min"] <= x <= self.workspace["x_max"]):
-        #         return False
-        if not (self.workspace["y_min"] <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-            return False
-        if not (self.workspace["z_min"] <= z <= self.workspace["z_max"]):
-            return False
+        while not self.piper.enable_arm():
+            time.sleep(0.01)
 
-        return True
+        self.piper.enable_gripper()
 
-    # =========================================================
-    # Master追従
-    # =========================================================
-    def joint_callback(self, msg):
+        joints=np.zeros(6)
+        joints[0] = -1.57
+        joints[1] =  0
+        joints[2] =  0
+        joints[3] =  0
+        joints[4] = -0
+        joints[5] = -2
+        grip_pos = 0
 
-        # leader姿勢がまだ来ていない場合は動かさない
-        if self.latest_pose is None:
-            return
-
-        # workspace外なら動かない
-        if not self.is_inside_workspace(self.latest_pose):
-            rospy.logwarn_throttle(1.0, "Right Arm: Outside workspace. Motion blocked.")
-            return
-
-        if len(msg.position) < 7:
-            return
-
-        joints = list(msg.position[:6])
-        gripper = msg.position[6]
-
-        # gripper safety clamp
-        gripper = max(0.0, min(0.1, gripper))
-
-        # ======= 動作実行 =======
         self.piper.move_j(joints, self.move_spd_rate_ctrl)
+        self.piper.move_gripper(grip_pos, 1)
 
-        if self.gripper_exist:
-            self.piper.move_gripper(gripper, 1)
+        # print("===================")
+        # print("Go Home position")
+        # print("===================")
+        # rospy.loginfo("Go Home position")
 
-        ## debug
-        # print("=======================")
-        # print(self.piper.get_end_pose_euler()[0])
-        # print("=======================")
-    
+        return TriggerResponse(
+        success=True,
+        message="Robot moved to home position"
+    )
+
     # =========================================================
     # 起動までTeacherモードを起動した際のサーボモータ初期化の関数たち
     # =========================================================
@@ -324,5 +272,5 @@ class PiperSlaveNode:
 
 # =============================================================
 if __name__ == "__main__":
-    node = PiperSlaveNode()
+    node = PiperMasterNode()
     rospy.spin()
