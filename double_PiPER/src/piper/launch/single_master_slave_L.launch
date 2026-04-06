@@ -6,8 +6,15 @@
   <arg name="auto_enable" default="true" />
   <arg name="gripper_val_mutiple" default="1" />
 
+  <!-- type="piper_ctrl_master_node.py" -->
   <!-- ================= Master ================= -->
   <group ns="master">
+    <!-- Old version -->
+    <!-- <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_master_node_new.py"
+          output="screen"> -->
+    <!-- New version -->
     <node name="ctrl"
           pkg="piper"
           type="piper_ctrl_master_node_new.py"
@@ -33,7 +40,7 @@
       <param name="gripper_exist" value="true" />
       <remap from="joint_ctrl_single" to="/master/joint_grip_pose" />
       <!-- leader pose topic -->
-      <!-- <remap from="/end_pose_euler" to="/master/end_pose_euler" /> -->
+      <remap from="/end_pose_euler" to="/master/end_pose_euler" />
     </node>
   </group>
 

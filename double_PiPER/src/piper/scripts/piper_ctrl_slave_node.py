@@ -33,8 +33,8 @@ class PiperSlaveNode:
         self.workspace = {
             "x_min":  -0.05,
             "x_max":   0.05,
-            "y_min":  -0.32,
-            "y_max":   0.32,
+            "y_min":  -0.35,
+            "y_max":   0.35,
             "z_min":   0.1,
             "z_max":   0.65,
             "rz_min": -3.0,

@@ -25,6 +25,7 @@ class PiperSlaveNode:
         self.gripper_exist = rospy.get_param("~gripper_exist", True)
 
         self.move_spd_rate_ctrl = 40
+        self.have_gripper = True
 
         # =========================
         # Workspace limit (meters)
@@ -32,8 +33,8 @@ class PiperSlaveNode:
         self.workspace = {
             "x_min":  -0.05,
             "x_max":   0.05,
-            "y_min":  -0.32,
-            "y_max":   0.32,
+            "y_min":  -0.35,
+            "y_max":   0.35,
             "z_min":   0.1,
             "z_max":   0.55,
             "rz_min": -3.0,
@@ -107,12 +108,53 @@ class PiperSlaveNode:
             queue_size=1
         )
 
+        # rospy.Subscriber(
+        #     "/end_pose_euler",
+        #     PiperEulerPose,
+        #     self.pose_callback,
+        #     queue_size=1
+        # )
         rospy.Subscriber(
             "/end_pose_euler",
-            PiperEulerPose,
+            JointState,
             self.pose_callback,
             queue_size=1
         )
+
+        self.joint_obs_pub = rospy.Publisher(
+            "current_joint_obs",
+            JointState,
+            queue_size=10
+        )
+        self.robot_obs = JointState()
+        self.robot_obs.name = [
+            "joint1","joint2","joint3",
+            "joint4","joint5","joint6",
+            "gripper"
+        ]
+        # 定期publish用timer
+        rospy.Timer(rospy.Duration(0.02), self.Publish_JointObs)
+    
+    # =========================================================
+    # PiPERの現在のJoint角度＆グリッパー位置を取得
+    # =========================================================
+    def Publish_JointObs(self, event):
+        joint_pos = self.piper.get_joint_states()[0]
+        gripper_pos = self.piper.get_gripper_states()[0][0]
+        # end_pos = self.piper.get_end_pose_euler()[0]
+
+        msg = JointState()
+        msg.header.stamp = rospy.Time.now()
+        msg.name = [
+            "joint1","joint2","joint3",
+            "joint4","joint5","joint6",
+            "gripper"
+        ]
+
+        msg.position = list(joint_pos) + [gripper_pos]
+        self.joint_obs_pub.publish(msg)
+
+        
 
     # =========================================================
     # leaderのエンド姿勢を保存
@@ -125,66 +167,68 @@ class PiperSlaveNode:
         #     msg.roll, msg.pitch, msg.yaw))
         # print("===========================")
     
-    # =========================================================
-    # 動作可能領域をロボット基準座標系→World座標系に変換
-    # =========================================================
-    def transform_point(p2, rx, ry, rz, t=None, degrees=False):
-        """
-        p2 : 座標系2での点 [x, y, z]
-        rx, ry, rz : roll, pitch, yaw (ZYX順)
-        t : 並進ベクトル [tx, ty, tz]
-        degrees : 角度がdegreeならTrue
-        """
+    # # =========================================================
+    # # 動作可能領域をロボット基準座標系→World座標系に変換
+    # # =========================================================
+    # def transform_point(p2, rx, ry, rz, t=None, degrees=False):
+    #     """
+    #     p2 : 座標系2での点 [x, y, z]
+    #     rx, ry, rz : roll, pitch, yaw (ZYX順)
+    #     t : 並進ベクトル [tx, ty, tz]
+    #     degrees : 角度がdegreeならTrue
+    #     """
 
-        if degrees:
-            rx = np.deg2rad(rx)
-            ry = np.deg2rad(ry)
-            rz = np.deg2rad(rz)
+    #     if degrees:
+    #         rx = np.deg2rad(rx)
+    #         ry = np.deg2rad(ry)
+    #         rz = np.deg2rad(rz)
 
-        # 回転行列
-        Rx = np.array([
-            [1, 0, 0],
-            [0, np.cos(rx), -np.sin(rx)],
-            [0, np.sin(rx),  np.cos(rx)]
-        ])
+    #     # 回転行列
+    #     Rx = np.array([
+    #         [1, 0, 0],
+    #         [0, np.cos(rx), -np.sin(rx)],
+    #         [0, np.sin(rx),  np.cos(rx)]
+    #     ])
 
-        Ry = np.array([
-            [ np.cos(ry), 0, np.sin(ry)],
-            [0, 1, 0],
-            [-np.sin(ry), 0, np.cos(ry)]
-        ])
+    #     Ry = np.array([
+    #         [ np.cos(ry), 0, np.sin(ry)],
+    #         [0, 1, 0],
+    #         [-np.sin(ry), 0, np.cos(ry)]
+    #     ])
 
-        Rz = np.array([
-            [np.cos(rz), -np.sin(rz), 0],
-            [np.sin(rz),  np.cos(rz), 0],
-            [0, 0, 1]
-        ])
+    #     Rz = np.array([
+    #         [np.cos(rz), -np.sin(rz), 0],
+    #         [np.sin(rz),  np.cos(rz), 0],
+    #         [0, 0, 1]
+    #     ])
 
-        # ZYX順
-        R = Rz @ Ry @ Rx
+    #     # ZYX順
+    #     R = Rz @ Ry @ Rx
 
-        p2 = np.array(p2)
+    #     p2 = np.array(p2)
 
-        if t is None:
-            t = np.zeros(3)
-        else:
-            t = np.array(t)
+    #     if t is None:
+    #         t = np.zeros(3)
+    #     else:
+    #         t = np.array(t)
 
-        # 座標変換
-        pB = R @ p2 + t
+    #     # 座標変換
+    #     pB = R @ p2 + t
 
-        return pB
+    #     return pB
 
     # =========================================================
     # workspace内判定
     # =========================================================
     def is_inside_workspace(self, pose):
 
-        x = pose.x
-        y = pose.y
-        z = pose.z
-        rz_rad = abs(abs(pose.yaw)-0.663)
-        # print("yow:", abs(abs(pose.yaw)-0.663))
+        x = pose.position[0]
+        y = pose.position[1]
+        z = pose.position[2]
+        # roll  = pose.position[3]
+        # pitch = pose.position[4]
+        yaw   = pose.position[5]
+        rz_rad = abs(abs(yaw)-0.663)
         # print("marg:",1/math.cos(rz_rad))#, math.cos(rz))
         # print("rx:", pose.roll)
         # print("ry:", pose.pitch)
@@ -194,14 +238,14 @@ class PiperSlaveNode:
 
         # if not (self.workspace["x_min"]/math.cos(rz_rad) <= x <= self.workspace["x_max"]/math.cos(rz_rad)):
         #     return False
-        if not (self.workspace["y_min"]/math.cos(rz_rad) <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-            return False
+        # if not (self.workspace["y_min"]/math.cos(rz_rad) <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
+        #     return False
         # if not (self.workspace["x_min"] <= x <= self.workspace["x_max"]):
         #         return False
-        # if not (self.workspace["y_min"] <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
-        #     return False
-        # if not (self.workspace["z_min"] <= z <= self.workspace["z_max"]):
-        #     return False
+        if not (self.workspace["y_min"] <= y <= self.workspace["y_max"]/math.cos(rz_rad)):
+            return False
+        if not (self.workspace["z_min"] <= z <= self.workspace["z_max"]):
+            return False
 
         return True
 
@@ -216,7 +260,7 @@ class PiperSlaveNode:
 
         # workspace外なら動かない
         if not self.is_inside_workspace(self.latest_pose):
-            rospy.logwarn_throttle(1.0, "Left Arm: Outside workspace. Motion blocked.")
+            rospy.logwarn_throttle(1.0, "Right Arm: Outside workspace. Motion blocked.")
             return
 
         if len(msg.position) < 7:
@@ -271,6 +315,7 @@ class PiperSlaveNode:
             self.piper.enable_gripper()
         self.interface.ModeCtrl(0x01, 0x01, self.move_spd_rate_ctrl, 0x00)
         print("INFO: Enable successful")
+        
 
 
 # =============================================================

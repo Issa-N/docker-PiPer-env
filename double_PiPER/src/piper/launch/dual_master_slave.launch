@@ -5,6 +5,8 @@
   <arg name="can_master_L_port" default="can3" />
   <arg name="auto_enable" default="true" />
   <arg name="gripper_val_mutiple" default="1" />
+  <arg name="video_R_port" default="0" />
+  <arg name="video_L_port" default="2" />
 
   <!-- ================= Master_Right ================= -->
   <group ns="masterR">
@@ -34,6 +36,13 @@
       <remap from="joint_ctrl_single" to="/masterR/joint_grip_pose" />
       <!-- leader pose topic -->
       <remap from="/end_pose_euler" to="/masterR/end_pose_euler" />
+    </node>
+
+    <node name="camera_pub"
+          pkg="piper"
+          type="camera_pub.py"
+          output="screen">
+      <param name="video_port" value="$(arg video_R_port)" />
     </node>
   </group>
 
@@ -65,6 +74,13 @@
       <remap from="joint_ctrl_single" to="/masterL/joint_grip_pose" />
       <!-- leader pose topic -->
       <remap from="/end_pose_euler" to="/masterL/end_pose_euler" />
+    </node>
+
+    <node name="camera_pub"
+          pkg="piper"
+          type="camera_pub.py"
+          output="screen">
+      <param name="video_port" value="$(arg video_L_port)" />
     </node>
   </group>
 
