@@ -11,7 +11,9 @@ docker run --rm -it \
 	--volume /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY \
 	--privileged --net=host --ipc=host \
 	--device=/dev/video0 \
+	--device=/dev/video1 \
 	--device=/dev/video2 \
+	--device=/dev/video3 \
 	-e DOCKER_USER_NAME=$(id -un) \
 	-e DOCKER_USER_ID=$(id -u) \
 	-e DOCKER_USER_GROUP_NAME=$(id -gn) \

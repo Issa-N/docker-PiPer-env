@@ -1,0 +1,49 @@
+<launch>
+  <arg name="can_slave_port" default="can0" />
+  <arg name="can_master_port" default="can1" />
+  <!-- <arg name="can_slave_port" default="can2" />
+  <arg name="can_master_port" default="can3" /> -->
+  <arg name="auto_enable" default="true" />
+  <arg name="gripper_val_mutiple" default="1" />
+  <arg name="video_port" default="0" />
+
+  <!-- ================= Master ================= -->
+  <group ns="master">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_master_node_new.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_master_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="joint_grip_pose" />
+    </node>
+  </group>
+
+
+  <!-- ================= Slave ================= -->
+  <group ns="slave">
+    <node name="ctrl"
+          pkg="piper"
+          type="piper_ctrl_slave_node.py"
+          output="screen">
+      <param name="can_port" value="$(arg can_slave_port)" />
+      <param name="auto_enable" value="$(arg auto_enable)" />
+      <param name="gripper_val_mutiple" value="$(arg gripper_val_mutiple)" />
+      <param name="gripper_exist" value="true" />
+      <remap from="joint_ctrl_single" to="/DF_joint_grip_pose" />
+      <!-- leader pose topic -->
+      <remap from="/end_pose_euler" to="/master/end_pose_euler" />
+    </node>
+
+    <node name="camera_pub"
+          pkg="piper"
+          type="camera_pub.py"
+          output="screen">
+      <param name="video_port" value="$(arg video_port)" />
+    </node>
+  </group>
+
+</launch>
+
